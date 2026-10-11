@@ -120,7 +120,6 @@ html{font-size:16px}body{line-height:1.5}.sidebar{padding:36px 22px;background:v
     <p class="footer-note">ЭнергияAI · Оценка самочувствия, а не медицинский показатель. Версия для раннего доступа.</p></main>
   </div>
   <nav class="mobile-nav" aria-label="Мобильная навигация">__NAV__</nav>
-<dialog id="appConfirm" class="app-dialog" aria-labelledby="confirmTitle" aria-describedby="confirmDescription"><div class="dialog-symbol" id="confirmSymbol" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4m0 4h.01"/><circle cx="12" cy="12" r="9"/></svg></div><h2 id="confirmTitle"></h2><p id="confirmDescription"></p><div class="dialog-actions"><button type="button" class="secondary" id="confirmCancel">Отмена</button><button type="button" class="primary" id="confirmAccept">Продолжить</button></div></dialog>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script>
@@ -132,13 +131,6 @@ html{font-size:16px}body{line-height:1.5}.sidebar{padding:36px 22px;background:v
     const defaults={sleep:7.4,mood:3,steps:4200,stress:2,theme:'system',notifications:true,history:[],entries:[],completedDate:null,displayName:''};
     let stored={};try{stored=JSON.parse(localStorage.getItem('energyai-demo')||'{}')||{}}catch(e){};let state={...defaults,...stored};state.entries=Array.isArray(state.entries)?state.entries.filter(x=>x&&Number.isFinite(x.score)&&typeof x.date==='string'):[];['sleep','mood','steps','stress'].forEach(k=>{if(!Number.isFinite(state[k]))state[k]=defaults[k]});state.sleep=Math.max(0,Math.min(24,state.sleep));state.steps=Math.round(Math.max(0,Math.min(100000,state.steps)));state.mood=Math.max(1,Math.min(5,Math.round(state.mood)));state.stress=Math.max(1,Math.min(5,Math.round(state.stress)));
     const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-
-let confirmPending=false;
-function appConfirm({title,description,accept='Продолжить',danger=false}){if(confirmPending)return Promise.resolve(false);const dialog=$('#appConfirm');$('#confirmTitle').textContent=title;$('#confirmDescription').textContent=description;$('#confirmAccept').textContent=accept;dialog.classList.toggle('destructive',danger);dialog.returnValue='cancel';return new Promise(resolve=>{confirmPending=true;dialog.addEventListener('close',()=>{confirmPending=false;resolve(dialog.returnValue==='accept')},{once:true});dialog.showModal();$('#confirmCancel').focus()})}
-$('#confirmCancel').addEventListener('click',()=>$('#appConfirm').close('cancel'));
-$('#confirmAccept').addEventListener('click',()=>$('#appConfirm').close('accept'));
-$('#appConfirm').addEventListener('cancel',event=>{event.preventDefault();$('#appConfirm').close('cancel')});
-
     const moodWords=['','низкое','ниже среднего','нормальное','хорошее','отличное'];
     const stressWords=['','низкое','среднее','повышенное','высокое','сильное'];
     const format=n=>new Intl.NumberFormat('ru-RU').format(n);
@@ -157,7 +149,7 @@ $('#appConfirm').addEventListener('cancel',event=>{event.preventDefault();$('#ap
     $('#themeToggle').addEventListener('click',()=>{state.theme=(document.documentElement.dataset.theme==='dark'?'light':'dark');applyTheme();save()});
     $('#themeSelect').addEventListener('change',e=>{state.theme=e.target.value;applyTheme();save()});
     $('#notificationSwitch').addEventListener('click',e=>{state.notifications=!state.notifications;e.currentTarget.classList.toggle('on',state.notifications);e.currentTarget.setAttribute('aria-pressed',String(state.notifications));save();$('.intro-strip').hidden=!state.notifications;showToast(state.notifications?'Подсказка включена':'Подсказка выключена')});
-    $('#resetData').addEventListener('click',async()=>{if(!await appConfirm({title:'Очистить дневник?',description:'Все чек-ины и черновики будут удалены, настройки вернутся к исходным. Переписка с помощником сохранится.',accept:'Очистить',danger:true}))return;const oldState=state;state={...defaults,history:[],entries:[]};if(!save()){state=oldState;return}renderAll();showToast('История очищена')});
+    $('#resetData').addEventListener('click',()=>{if(!confirm('Удалить историю и вернуть настройки?'))return;state={...defaults,history:[],entries:[]};save();renderAll();showToast('История очищена')});
     $$('.prompt').forEach(b=>b.addEventListener('click',()=>ask(b.textContent)));
     $('#chatForm').addEventListener('submit',e=>{e.preventDefault();const q=$('#chatInput').value.trim();if(!q)return;if(ask(q))$('#chatInput').value=''});
     const chatStorageKey='energyai-chat-v1';
@@ -168,7 +160,7 @@ $('#appConfirm').addEventListener('cancel',event=>{event.preventDefault();$('#ap
     function renderChat(){$('#messages').textContent='';if(!chatMessages.length)addBubble(chatWelcome,'ai');else chatMessages.forEach(m=>addBubble(m.text,m.type))}
     function ask(q){q=String(q).trim();if(!q)return false;const answer=reply(q);const next=chatMessages.concat([{type:'user',text:q},{type:'ai',text:answer}]);if(!persistChat(next))return false;chatMessages=next;addBubble(q,'user');addBubble(answer,'ai');return true}
     function addBubble(text,type){const b=document.createElement('div');b.className='bubble '+type;b.textContent=text;$('#messages').appendChild(b);$('#messages').scrollTop=$('#messages').scrollHeight}
-    async function startNewChat(){if(chatMessages.length&&!await appConfirm({title:'Начать новый чат?',description:'Все вопросы и ответы в этом диалоге будут удалены. Записи дневника сохранятся.',accept:'Удалить диалог',danger:true}))return; if(!persistChat([]))return;chatMessages=[];$('#chatInput').value='';renderChat();$('#chatInput').focus();showToast('Начат новый чат')}
+    function startNewChat(){if(chatMessages.length&&!confirm('Удалить все вопросы и ответы и начать новый чат?'))return; if(!persistChat([]))return;chatMessages=[];$('#chatInput').value='';renderChat();$('#chatInput').focus();showToast('Начат новый чат')}
     $('#newChat').addEventListener('click',startNewChat);
     chatMessages=readChat();renderChat();
     function reply(q){if(!state.entries.some(x=>x.date===selectedDate))return 'Сначала сохрани запись о дне: тогда я смогу объяснить показатели. Пока здесь работает помощник по правилам, без подключения ИИ.';const e=energy(),lowSleep=state.sleep<6.5;if(/почему|процент/i.test(q))return`Сейчас ${e}%. Больше всего влияют сон ${state.sleep.toFixed(1)} ч, ${format(state.steps)} шагов и ${stressWords[state.stress]} напряжение.`;if(/сложн|когда/i.test(q))return e>=65?'Сложную задачу лучше поставить на ближайшие 1–2 часа, пока запас выше среднего.':'Сегодня лучше разбить сложную задачу на короткие этапы и сделать паузу между ними.';if(/вечер|сохран/i.test(q))return state.steps<5000?'Добавь 10–15 минут спокойной ходьбы и не ставь три сложные задачи подряд.':'Сохрани темп, сделай перерыв через 60–90 минут и оставь вечер без тяжёлых решений.';if(/завтра|улучш/i.test(q))return lowSleep?'Главный рычаг на завтра — сон. Попробуй лечь хотя бы на 40 минут раньше.':'По чек-ину сон не короче 6,5 часов. Следующий шаг — немного больше движения в первой половине дня.';return`При текущей энергии ${e}% я бы оставил одну главную задачу, затем короткий перерыв. Хочешь, разложу день по времени?`}
@@ -185,7 +177,7 @@ function restoreDraft(){const d=drafts()[selectedDate];if(d&&typeof d==='object'
 $('#checkinForm').addEventListener('input',event=>{if(draftFields.includes(event.target.id)){captureDraft();$$('.time-adjust button').forEach(b=>b.disabled=timeMinutes($('#'+b.dataset.timeField).value)===null)}});
 $('#checkinForm').addEventListener('change',event=>{if(draftFields.includes(event.target.id))captureDraft()});
 $$('.time-adjust button').forEach(button=>button.addEventListener('click',()=>{const field=$('#'+button.dataset.timeField),next=shiftClock(field.value,Number(button.dataset.timeShift));if(next===null)return;field.value=next;renderSleepDuration();captureDraft()}));
-$('#copyPrevious').addEventListener('click',async()=>{const prev=previousCheckin(state.entries,selectedDate);if(!prev)return;if(draftFields.some(k=>$('#'+k).value!=='')&&!await appConfirm({title:'Взять прошлую запись?',description:'Показатели заменятся данными за '+dateLabel(prev.date)+'. Твоя заметка останется. Проверь значения перед сохранением.',accept:'Подставить данные'}))return;['bedTime','wakeTime','mood','steps','stress'].forEach(k=>$('#'+k).value=prev[k]??'');renderSleepDuration();captureDraft();restoreDraft();$('#draftStatus').textContent='Взято из записи за '+dateLabel(prev.date)+' · поправь показатели и сохрани день';});
+$('#copyPrevious').addEventListener('click',()=>{const prev=previousCheckin(state.entries,selectedDate);if(!prev)return;if(draftFields.some(k=>$('#'+k).value!=='')&&!confirm('Заменить введённые показатели данными прошлой записи? Заметка останется.'))return;['bedTime','wakeTime','mood','steps','stress'].forEach(k=>$('#'+k).value=prev[k]??'');renderSleepDuration();captureDraft();restoreDraft();$('#draftStatus').textContent='Взято из записи за '+dateLabel(prev.date)+' · поправь показатели и сохрани день';});
 
 function dayKey(d=new Date()){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function recordCheckin(){const entry={date:selectedDate,score:energy(),sleep:state.sleep,bedTime:state.bedTime||null,wakeTime:state.wakeTime||null,mood:state.mood,steps:state.steps,stress:state.stress,note:$('#entryNote').value.trim().slice(0,500),updatedAt:new Date().toISOString()};state.entries=state.entries.filter(x=>x.date!==entry.date);state.entries.push(entry);state.entries=state.entries.sort((a,b)=>a.date.localeCompare(b.date)).slice(-365)}
