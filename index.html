@@ -142,7 +142,7 @@ html{font-size:16px}body{line-height:1.5}.sidebar{padding:36px 22px;background:v
     function signed(n){return(n>0?'+':'')+n}
     function impact(ic,title,sub,val,pos){return`<div class="impact"><div class="impact-icon ${pos?'':'warn'}">${ic}</div><div><b>${title}</b><small>${sub}</small></div><span class="impact-value ${pos?'':'warn'}">${val}</span></div>`}
     function applyTheme(value=state.theme){document.documentElement.dataset.theme=value==='system'?'':value;$('#themeSelect').value=value}
-    function navigate(target){$$('.view').forEach(v=>v.classList.toggle('active',v.dataset.view===target));$$('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.target===target));const titles={today:'Сегодня',ai:'Помощник',stats:'Динамика',profile:'Профиль'};$('#pageTitle').textContent=titles[target];window.scrollTo({top:0,behavior:'smooth'})}
+    function navigate(target){if(!Object.prototype.hasOwnProperty.call(labels,target))target='today';try{sessionStorage.setItem('energyai-active-section',target)}catch(error){}$$('.view').forEach(v=>v.classList.toggle('active',v.dataset.view===target));$$('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.target===target));const titles={today:'Сегодня',ai:'Помощник',stats:'Динамика',profile:'Профиль'};$('#pageTitle').textContent=titles[target];window.scrollTo({top:0,behavior:'smooth'})}
     $$('.nav-btn').forEach(b=>b.addEventListener('click',()=>navigate(b.dataset.target)));
     $('#quickCheck').addEventListener('click',()=>{navigate('today');$('#checkinCard').scrollIntoView({behavior:'smooth',block:'center'})});
     $('#doRecommendation').addEventListener('click',()=>{state.completedDate=dayKey();save();renderCompletion();showToast('Действие отмечено на сегодня')});
@@ -259,6 +259,8 @@ renderWeek=function(){const count=Number($('#statsPeriod').value)||7;const dates
 let observedDay=dayKey();setInterval(()=>{const today=dayKey();if(today!==observedDay){observedDay=today;$('#entryDate').max=today;showToast('Наступил новый день. Выбери сегодняшнюю дату для новой записи.')}},60000);
 
     selectedDate=dayKey();$('#entryDate').value=selectedDate;$('#entryDate').max=dayKey();const earliest=new Date();earliest.setDate(earliest.getDate()-364);$('#entryDate').min=dayKey(earliest);loadDay();registerWebMCP();
+    let restoredSection='today';try{restoredSection=sessionStorage.getItem('energyai-active-section')||'today'}catch(error){}
+    navigate(restoredSection);
   </script>
 </body>
 </html>
